@@ -2,7 +2,7 @@
 /**
  * NavBuilder
  *
- * A simple utility class which can be used to conveniently build a html menu
+ * A simple utility class for FuelPHP, which can be used to conveniently build a html menu
  * either form an array, a database table or manually, using add() method.
  *
  * @author   KrisOzolins <http://krisozolins.com>
