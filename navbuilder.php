@@ -3,7 +3,7 @@
  * NavBuilder
  *
  * A simple utility class for FuelPHP, which can be used to conveniently build a html menu
- * either form an array, a database table or manually, using add() method.
+ * either form an array, a database table or manually, using the add() method.
  *
  * @author   KrisOzolins <http://krisozolins.com>
  * @version  1.0
@@ -95,11 +95,11 @@ class NavBuilder
             ->order_by($settings['order_by_column_name'], $settings['order_by_direction'])
             ->execute()->as_array();
 
-        if (!empty($links)) {
+        if ( ! empty($links)) {
             $nav = new NavBuilder;
 
             foreach ($links as $link) {
-                if (!isset($link[$settings['is_active_column']])) {
+                if ( ! isset($link[$settings['is_active_column']])) {
                     $show = true;
                 } else {
                     $show = $link[$settings['is_active_column']];
@@ -120,37 +120,37 @@ class NavBuilder
      * @param   array   The parent item's array, only used internally
      * @return  string  HTML unordered list
      */
-    public function render(array $attrs = null, $current = null, array $links = null)
+    public function render(array $attrs = null, $current = null, $pre_url = null, array $links = null)
     {
         static $i;
 
         $links = empty($links) ? $this->links : $links;
         $current = empty($current) ? $this->current : $current;
         $attrs = empty($attrs) ? $this->attrs : $attrs;
-        $pre_url = trim($this->pre_url, '/');
+        $pre_url = empty($pre_url) ? trim($this->pre_url, '/') : trim($pre_url, '/');
 
         $i++;
 
         $menu = '<ul'.($i == 1 ? self::attributes($attrs) : null).'>';
 
-        foreach ($links as $key => $item) {
-            $has_children = isset($item['children']);
+        foreach ($links as $link) {
+            $has_children = isset($link['children']);
 
             $class = array();
 
             $has_children ? $class[] = 'parent' : null;
 
             if ( ! empty($current)) {
-                if ($current_class = self::current($current, $item)) {
+                if ($current_class = self::current($current, $link)) {
                     $class[] = $current_class;
                 }
             }
 
             $classes = ! empty($class) ? self::attributes(array('class' => implode(' ', $class))) : null;
 
-            if (!isset($item['show']) || $item['show']) {
-                $menu .= '<li'.$classes.'><a href="'.Uri::create($pre_url.'/'.$item['url']).'">'.$item['title'].'</a>';
-                $menu .= $has_children ? $this->render(null, $current, $item['children']) : null;
+            if ( ! isset($link['show']) || $link['show']) {
+                $menu .= '<li'.$classes.'><a href="'.Uri::create($pre_url.'/'.$link['url']).'">'.$link['title'].'</a>';
+                $menu .= $has_children ? $this->render(null, $current, $pre_url, $link['children']) : null;
                 $menu .= '</li>';
             }
         }
@@ -160,6 +160,75 @@ class NavBuilder
         $i--;
 
         return $menu;
+    }
+
+    /**
+     * Compiles an array of HTML attributes into an attribute string.
+     *
+     * @param   string|array  array of attributes
+     * @return  string
+     */
+    private static function attributes($attrs)
+    {
+        if (empty($attrs)) {
+            return '';
+        }
+
+        if (is_string($attrs)) {
+            return ' '.$attrs;
+        }
+
+        $compiled = '';
+        foreach ($attrs as $key => $val) {
+            $compiled .= ' '.$key.'="'.htmlspecialchars($val).'"';
+        }
+
+        return $compiled;
+    }
+
+    /**
+     * Figures out if links are parents of the active item.
+     *
+     * @param   array   The current url array (key, match)
+     * @param   array   The array to check against
+     * @return  bool
+     */
+    private static function current($current, array $link)
+    {
+        if ($current === $link['url']) {
+            return 'active current';
+        } else {
+            if (self::active($link, $current, 'url')) {
+                return 'active';
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Recursive function to check if active item is child of parent item
+     *
+     * @param   array   The list item
+     * @param   string  The current active item
+     * @param   string  Key to match current against
+     * @return  bool
+     */
+    private static function active($array, $value, $key)
+    {
+        foreach ($array as $val) {
+            if (is_array($val)) {
+                if (self::active($val, $value, $key)) {
+                    return true;
+                }
+            } else {
+                if ($array[$key] === $value) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -193,74 +262,5 @@ class NavBuilder
         if (isset($this->attrs[$key])) {
             return $this->attrs[$key];
         }
-    }
-
-    /**
-     * Compiles an array of HTML attributes into an attribute string.
-     *
-     * @param   string|array  array of attributes
-     * @return  string
-     */
-    protected static function attributes($attrs)
-    {
-        if (empty($attrs)) {
-            return '';
-        }
-
-        if (is_string($attrs)) {
-            return ' '.$attrs;
-        }
-
-        $compiled = '';
-        foreach ($attrs as $key => $val) {
-            $compiled .= ' '.$key.'="'.htmlspecialchars($val).'"';
-        }
-
-        return $compiled;
-    }
-
-    /**
-     * Figures out if links are parents of the active item.
-     *
-     * @param   array   The current url array (key, match)
-     * @param   array   The array to check against
-     * @return  bool
-     */
-    protected static function current($current, array $item)
-    {
-        if ($current === $item['url']) {
-            return 'active current';
-        } else {
-            if (self::active($item, $current, 'url')) {
-                return 'active';
-            }
-        }
-
-        return '';
-    }
-
-    /**
-     * Recursive function to check if active item is child of parent item
-     *
-     * @param   array   The list item
-     * @param   string  The current active item
-     * @param   string  Key to match current against
-     * @return  bool
-     */
-    public static function active($array, $value, $key)
-    {
-        foreach ($array as $val) {
-            if (is_array($val)) {
-                if (self::active($val, $value, $key)) {
-                    return true;
-                }
-            } else {
-                if ($array[$key] === $value) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 }
